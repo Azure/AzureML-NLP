@@ -1,0 +1,24 @@
+name: Update Databricks Production Repo
+
+on:
+  push:
+    branches: [ main ]
+    
+  workflow_dispatch:
+
+jobs:
+  UpdateRepo:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Update Databricks repo
+        uses: ssc-dsai/databricks-update-repo-github-action@main
+        with:
+          databricks-host: ${{ secrets.DATABRICKS_HOST }}
+          databricks-token: ${{ secrets.DATABRICKS_TOKEN }}
+          databricks-repo-id: ${{ secrets.DATABRICKS_REPO_ID }}
+          databricks-repo-branch: "main"

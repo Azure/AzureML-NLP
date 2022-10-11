@@ -32,24 +32,7 @@ def adjust_tokenizer(model, tokenizer, new_tokens):
     return model, tokenizer
 
 def get_tokens(pdf = None):
-    new_tokens = ['hc-sc', 'tsb - bst', 'psc-cfp', 'ised-isde', 'csps-efpc', 'acoa-apeca', 'osfi - bsif', 'dnd-mdn', 
-                  'pch-pch', 'polar - polaire', 'ssc-spc', 'eccc-eccc', 'nserc - crsng', 'dfo-mpo', 'swc - cfc', 'ca', 
-                  'cra-arc', 'tc-tc', 'sirc - csars', 'fin-fin', 'phac-aspc', 'cas - satj', 'oag - bvg', 'catsa - acsta', 
-                  'aafc-aac', 'feddev ontario-feddev ontario', 'irb-cisr', 'fcac - acfc', 'osgg - bsgg', 'cgc - ccg', 
-                  'cnsc-ccsn', 'ps-sp', 'nrc-cnrc', 'csa-asc', 'pptc-pptc', 'iaac - aeic', 'statcan-statcan', 'ppsc - sppc', 
-                  'crtc - crtc', 'cfia-acia', 'scc - csc', 'csc-scc', 'csec - cstc', 'vac-acc', 'pco-bcp', 'tbs-sct', 
-                  'infc-infc', 'pspc-spac', 'ocol - clo', 'wd-deo', 'neb - one', 'inac-aanc', 'ircc-ircc', 'fintrac-canafe', 
-                  'crcc - ccetp', 'ced-dec', 'mgerc - ceegm', 'rcmp-grc', 'esdc-edsc', 'dcc - cdc', 'pc-pc', 'cbsa-asfc', 
-                  'jus-jus', 'nrcan-rncan', 'gac-amc', 'lac-bac', 'oodnd - bodn', 'chrc - ccdp', 'pmprb - cepmb', 
-                  'telecan - telecan', 'atssc-scdata', 'edc - edc', 'mpcc - cppm', 'elections - elections', 'fja - cmf', 
-                  'ocl - cal', 'pmo-cpm', 'hofc - cdc', 'ccohs - cchst', 'opc - cpvp', 'swc-cfc', 'cmn - mcn', 
-                  'cirnac-rcaanc', 'ont-ont']
-
-    if pdf is not None:
-        if 'DEPARTMENT_SRC' in pdf.columns:
-            print('Capturing NewTokens from dataset')
-            new_tokens = [x.lower() for x in list(pdf['DEPARTMENT_SRC'].dropna().unique())]
-            print(f'new_tokens: {new_tokens}')
+    new_tokens = []
 
     return new_tokens
 
@@ -97,38 +80,32 @@ def get_datasets(is_local, is_test, is_final):
         pdf_train = pd.read_parquet('../data/pdf_train.parquet')
         pdf_validation = pd.read_parquet('../data/pdf_validation.parquet')
         pdf_test = pd.read_parquet('../data/pdf_test.parquet')
-        pdf_temporal_test = pd.read_parquet('../data/pdf_temporal_test.parquet')
+
         new_tokens = get_tokens()
     elif is_test:
         print('the job is a test job')
-        
-        train, pdf_train = train_test_split(pdf_train, test_size=4000/pdf_train.shape[0], stratify=pdf_train['target'])
-        train, pdf_validation = train_test_split(pdf_validation, test_size=4000/pdf_validation.shape[0], stratify=pdf_validation['target'])
-        train, pdf_test = train_test_split(pdf_test, test_size=4000/pdf_test.shape[0], stratify=pdf_test['target'])
-        pdf_temporal_test = pdf_temporal_test.iloc[0:4000]
-        # train, pdf_temporal_test = train_test_split(pdf_temporal_test, test_size=4000/pdf_temporal_test.shape[0], stratify=pdf_temporal_test['target'])
+        train, pdf_train = train_test_split(pdf_train, test_size=4000/pdf_train.shape[0], stratify=pdf_train[args.target_name])
+        train, pdf_validation = train_test_split(pdf_validation, test_size=4000/pdf_validation.shape[0], stratify=pdf_validation[args.target_name])
+        train, pdf_test = train_test_split(pdf_test, test_size=4000/pdf_test.shape[0], stratify=pdf_test[args.target_name])
     else:
         from azureml.core import Dataset
 
         ws = run.experiment.workspace
         
-        ds_train = Dataset.get_by_name(ws, name="owner_g_classfication_train")
-        ds_validation = Dataset.get_by_name(ws, name="owner_g_classfication_val")
-        ds_test = Dataset.get_by_name(ws, name="owner_g_classfication_test")
-        ds_temporal_test = Dataset.get_by_name(ws, name="owner_g_classfication_temporal_test")
+        # ds_train = Dataset.get_by_name(ws, name="training_dataset")
+        # ds_validation = Dataset.get_by_name(ws, name="val_dataset")
+        # ds_test = Dataset.get_by_name(ws, name="test_dataset")
 
-        # ds_train = run.input_datasets['output_train']
-        # ds_validation = run.input_datasets['output_validation']
-        # ds_test = run.input_datasets['output_test']
-        # ds_temporal_test = run.input_datasets['output_temporal_test']
-        
+        ds_train = run.input_datasets['training_dataset']
+        ds_validation = run.input_datasets['val_dataset']
+        ds_test = run.input_datasets['test_dataset']
+
         pdf_train = ds_train.to_pandas_dataframe()
         pdf_validation = ds_validation.to_pandas_dataframe()
         pdf_test = ds_test.to_pandas_dataframe()
-        pdf_temporal_test = ds_temporal_test.to_pandas_dataframe()
 
         if is_final:
-            pdf_train = pd.concat([pdf_train, pdf_validation, pdf_test, pdf_temporal_test])
+            pdf_train = pd.concat([pdf_train, pdf_validation, pdf_test])
         
         new_tokens = get_tokens(pdf_train)
 
@@ -136,9 +113,8 @@ def get_datasets(is_local, is_test, is_final):
     print(f'pdf_train is imported with "{pdf_train.shape}" rows')
     print(f'pdf_validation is imported with "{pdf_validation.shape}" rows')
     print(f'pdf_test is imported with "{pdf_test.shape}" rows')
-    print(f'pdf_temporal_test is imported with "{pdf_temporal_test.shape}" rows')
     
-    return pdf_train, pdf_validation, pdf_test, pdf_temporal_test, new_tokens
+    return pdf_train, pdf_validation, pdf_test, new_tokens
 
 def test_model(trainer, ds, prefix):
     test_result = trainer.predict(ds)
@@ -156,7 +132,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--base-checkpoint', type=str, dest='base_checkpoint', default='bert-base-uncased', help='base model name')
     parser.add_argument('--target-name', type=str, dest='target_name', default='target', help='target column name')
-    parser.add_argument('--text-field-name', type=str, dest='text_field_name', default='TEXT_FINAL', help='text field name')
+    parser.add_argument('--text-field-name', type=str, dest='text_field_name', default='text_field', help='text field name')
     parser.add_argument('--is-test', type=int, dest='is_test', default=0, help='1 if this is a test run')
     parser.add_argument('--is-final', type=int, dest='is_final', default=0, help='1 if this is a final run (train on all data)')
     parser.add_argument('--is-local', type=int, dest='is_local', default=0, help='1 if this is a local run')
@@ -241,7 +217,7 @@ if __name__ == "__main__":
 
     os.environ["DISABLE_MLFLOW_INTEGRATION"] = "TRUE"
 
-    pdf_train, pdf_validation, pdf_test, pdf_temporal_test, new_tokens = get_datasets(is_local, is_test, is_final)
+    pdf_train, pdf_validation, pdf_test, new_tokens = get_datasets(is_local, is_test, is_final)
 
     num_labels = len(pdf_train[target_name].unique())
     print(f'num_labels: {num_labels}')
@@ -256,7 +232,7 @@ if __name__ == "__main__":
     train_ds, tokenized_train_ds = generate_tokenized_dataset(pdf_train, fields, le, target_name, text_field_name, tokenizer)
     validation_ds, tokenized_validation_ds = generate_tokenized_dataset(pdf_validation, fields, le, target_name, text_field_name, tokenizer)
     test_ds, tokenized_test_ds = generate_tokenized_dataset(pdf_test, fields, le, target_name, text_field_name, tokenizer)
-    temporal_test_ds, tokenized_temporal_test_ds = generate_tokenized_dataset(pdf_temporal_test, fields, le, target_name, text_field_name, tokenizer)
+    # temporal_test_ds, tokenized_temporal_test_ds = generate_tokenized_dataset(pdf_temporal_test, fields, le, target_name, text_field_name, tokenizer)
 
     print('Tokenized data is generated')
 
@@ -314,26 +290,26 @@ if __name__ == "__main__":
     test_model(trainer, tokenized_test_ds, 'test')
     print("Test is completed")
 
-    print("Temporal test is started")
-    test_model(trainer, tokenized_temporal_test_ds, 'temporal_test')
-    print("Temporal test is completed")
+    # print("Temporal test is started")
+    # test_model(trainer, tokenized_temporal_test_ds, 'temporal_test')
+    # print("Temporal test is completed")
 
     # train_ds, tokenized_train_ds = generate_tokenized_dataset(pdf_train[['OTHER']], fields, le, target_name, text_field_name, tokenizer)
     # validation_ds, tokenized_validation_ds = generate_tokenized_dataset(pdf_validation, fields, le, target_name, text_field_name, tokenizer)
-    pdf_test_no_other = pdf_test[pdf_test['target'] != "OTHER"]
-    print(f'size of pdf_test without [OTHER class]: "{pdf_test_no_other.shape[0]}"')
-    pdf_temporal_test_no_other = pdf_temporal_test[pdf_temporal_test['target'] != "OTHER"]
-    print(f'size of pdf_temporal_test without [OTHER class]: "{pdf_temporal_test_no_other.shape[0]}"')
+    # pdf_test_no_other = pdf_test[pdf_test[args.target_name] != "OTHER"]
+    # print(f'size of pdf_test without [OTHER class]: "{pdf_test_no_other.shape[0]}"')
+    # pdf_temporal_test_no_other = pdf_temporal_test[pdf_temporal_test[args.target_name] != "OTHER"]
+    # print(f'size of pdf_temporal_test without [OTHER class]: "{pdf_temporal_test_no_other.shape[0]}"')
 
-    test_ds, tokenized_test_ds_no_other = generate_tokenized_dataset(pdf_test_no_other, fields, le, target_name, text_field_name, tokenizer)
-    temporal_test_ds, tokenized_temporal_test_ds_no_other = generate_tokenized_dataset(pdf_temporal_test_no_other, fields, le, target_name, text_field_name, tokenizer)
+    # test_ds, tokenized_test_ds_no_other = generate_tokenized_dataset(pdf_test_no_other, fields, le, target_name, text_field_name, tokenizer)
+    # temporal_test_ds, tokenized_temporal_test_ds_no_other = generate_tokenized_dataset(pdf_temporal_test_no_other, fields, le, target_name, text_field_name, tokenizer)
 
-    print("Test (no other class) is started")
-    test_model(trainer, tokenized_test_ds_no_other, 'test_no_other')
-    print("Test (no other class) is completed")
-
-    print("Temporal test (no other class) is started")
-    test_model(trainer, tokenized_temporal_test_ds_no_other, 'temp_test_no_ot')
-    print("Temporal test (no other class) is completed")
+    # print("Test (no other class) is started")
+    # test_model(trainer, tokenized_test_ds_no_other, 'test_no_other')
+    # print("Test (no other class) is completed")
+    
+    # print("Temporal test (no other class) is started")
+    # test_model(trainer, tokenized_temporal_test_ds_no_other, 'temp_test_no_ot')
+    # print("Temporal test (no other class) is completed")
 
 

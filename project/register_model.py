@@ -22,10 +22,10 @@ from transformers import AutoTokenizer, Trainer, AutoModelForSequenceClassificat
 parser = argparse.ArgumentParser()
 parser.add_argument('--is-test', type=int, dest='is_test', default=0, help='if is_test is passed as 1 then this is a short circuit job')
 parser.add_argument('--test-run-id', type=str, dest='test_run_id', default='HD_03ef2102-1cf6-49a7-84a7-140720e57834_2', help='if is_test is passed as 1 then this parameter is entertained')
-parser.add_argument('--metric-name', type=str, dest='metric_name', default='temporal_test_f1_weighted', help='the primary metric to find the best model')
-parser.add_argument('--second-metric', type=str, dest='second_metric', default='temporal_test_f1', help='the secondary metric to report on the best model')
-parser.add_argument('--temporal-test-date', type=str, dest='temporal_test_date', default='202207', help='the temporal test date')
+parser.add_argument('--metric-name', type=str, dest='metric_name', default='test_f1_weighted', help='the primary metric to find the best model')
+parser.add_argument('--second-metric', type=str, dest='second_metric', default='test_f1', help='the secondary metric to report on the best model')
 parser.add_argument('--model-name', type=str, dest='model_name', help='model name to be registered')
+parser.add_argument('--target-name', type=str, dest='target_name', default='target', help='target column name')
 
 args = parser.parse_args()
 
@@ -58,7 +58,7 @@ for i, run in enumerate(all_runs):
             continue
     else:
         metrics = run.get_metrics()
-        if 'temporal_test_f1_weighted' in metrics:
+        if args.metric_name in metrics:
             dic_runs[run.id] = {
                 'run': run,
                 'metrics': metrics
@@ -68,39 +68,33 @@ print(f'len(dic_runs) = {len(dic_runs)}')
 
 metric_name = args.metric_name
 second_metric = args.second_metric
-temporal_test_date = args.temporal_test_date
+# temporal_test_date = args.temporal_test_date
 
 li_test_values = []
 best_performing_run = None
 
 for run_id in dic_runs:
     print('run_id', run_id)
-    temporal_test_f1_weighted = dic_runs[run_id]['metrics'][metric_name]
-    if (type(temporal_test_f1_weighted) == list):
-        temporal_test_f1_weighted = float(temporal_test_f1_weighted[0])
+    test_f1_weighted = dic_runs[run_id]['metrics'][metric_name]
+    if (type(test_f1_weighted) == list):
+        test_f1_weighted = float(test_f1_weighted[0])
     else:
-        temporal_test_f1_weighted = float(temporal_test_f1_weighted)
-    print('temporal_test_f1_weighted =', temporal_test_f1_weighted)
+        test_f1_weighted = float(test_f1_weighted)
+    print(f'{metric_name} = {test_f1_weighted}')
     
-    if len(li_test_values) == 0 or (len(li_test_values) > 0 and temporal_test_f1_weighted > max(li_test_values)):
-        if temporal_test_date == None:
-            best_performing_run = dic_runs[run_id]
+    if len(li_test_values) == 0 or (len(li_test_values) > 0 and test_f1_weighted > max(li_test_values)):
+        # if temporal_test_date == None:
+        best_performing_run = dic_runs[run_id]
 
-        if temporal_test_date:
-            dataset = dic_runs[run_id]['run'].get_details()['inputDatasets'][0]
-            if 'temporal_test_date' in dataset['dataset'].tags:
-                if dataset['dataset'].tags['temporal_test_date'] == temporal_test_date:
-                    best_performing_run = dic_runs[run_id]
+    # if temporal_test_date == None:
+    li_test_values.append(test_f1_weighted)
 
-    if temporal_test_date == None:
-        li_test_values.append(temporal_test_f1_weighted)
-
-    if temporal_test_date:
-        dataset = dic_runs[run_id]['run'].get_details()['inputDatasets'][0]
-        if 'temporal_test_date' in dataset['dataset'].tags:
-            if dataset['dataset'].tags['temporal_test_date'] == temporal_test_date:
-                # best_performing_run = dic_runs[run_id]
-                li_test_values.append(temporal_test_f1_weighted)
+    # if temporal_test_date:
+    #     dataset = dic_runs[run_id]['run'].get_details()['inputDatasets'][0]
+    #     if 'temporal_test_date' in dataset['dataset'].tags:
+    #         if dataset['dataset'].tags['temporal_test_date'] == temporal_test_date:
+    #             # best_performing_run = dic_runs[run_id]
+    #             li_test_values.append(test_f1_weighted)
 
 if not best_performing_run:
     print('No run is found')
@@ -111,33 +105,33 @@ else:
     temporal_dataset = None
 
     for dataset in run.get_details()['inputDatasets']:
-        if dataset['dataset'].name == 'owner_g_classfication_train':
+        if dataset['dataset'].name == 'training_dataset':
             train_dataset = dataset
-        elif dataset['dataset'].name == 'owner_g_classfication_temporal_test':
-            temporal_dataset = dataset
+        # elif dataset['dataset'].name == 'owner_g_classfication_temporal_test':
+        #     temporal_dataset = dataset
 
     print(f'run id: {run.id}')
-    print(f'Temporal test date: {temporal_test_date}')
+    # print(f'Temporal test date: {temporal_test_date}')
     print(f'{metric_name}: {best_performing_run["metrics"][metric_name]} - {second_metric}: {best_performing_run["metrics"][second_metric]}')
     print(f'Train dataset name: {train_dataset["dataset"].name}, V:{train_dataset["dataset"].version}')
-    print(f'Train dataset name: {temporal_dataset["dataset"].name}, V:{temporal_dataset["dataset"].version}')
+    # print(f'Train dataset name: {temporal_dataset["dataset"].name}, V:{temporal_dataset["dataset"].version}')
 
     run.log('run_id', run.id)
-    run.log('Temporal_test_date', temporal_test_date)
+    # run.log('Temporal_test_date', temporal_test_date)
     run.log(f'best {metric_name}', f'{best_performing_run["metrics"][metric_name]}')
     run.log(f'best {second_metric}', f'{best_performing_run["metrics"][second_metric]}')
     run.log('Train_dataset_name', f'{train_dataset["dataset"].name}, V:{train_dataset["dataset"].version}')
-    run.log('Train_dataset_name', f'{temporal_dataset["dataset"].name}, V:{temporal_dataset["dataset"].version}')
+    # run.log('Train_dataset_name', f'{temporal_dataset["dataset"].name}, V:{temporal_dataset["dataset"].version}')
 
 print(f'Total number of valid runs: [{counter}]')
 
 if not best_performing_run:
     os._exit(os.EX_OK)
 
-ds_train = Dataset.get_by_name(ws, name="owner_g_classfication_train", version=train_dataset["dataset"].version)
-ds_val = Dataset.get_by_name(ws, name="owner_g_classfication_val", version=train_dataset["dataset"].version)
-ds_test = Dataset.get_by_name(ws, name="owner_g_classfication_test", version=train_dataset["dataset"].version)
-ds_temporal_test = Dataset.get_by_name(ws, name="owner_g_classfication_temporal_test", version=temporal_dataset["dataset"].version)
+ds_train = Dataset.get_by_name(ws, name="training_dataset", version=train_dataset["dataset"].version)
+ds_val = Dataset.get_by_name(ws, name="val_dataset", version=train_dataset["dataset"].version)
+ds_test = Dataset.get_by_name(ws, name="test_dataset", version=train_dataset["dataset"].version)
+# ds_temporal_test = Dataset.get_by_name(ws, name="owner_g_classfication_temporal_test", version=temporal_dataset["dataset"].version)
 
 pdf_train = ds_train.to_pandas_dataframe()
 
@@ -155,10 +149,10 @@ model_directory = f'{dir}/outputs/model'
 print(f'the output path: [{model_directory}]')
 shutil.copy('score.py', model_directory)
 
-num_labels = len(pdf_train['target'].unique())
+num_labels = len(pdf_train[args.target_name].unique())
 print(f'Number of labels: [{num_labels}]')
 
-li_target = list(pdf_train['target'].unique())
+li_target = list(pdf_train[args.target_name].unique())
 with open(f"{model_directory}/target_list.json", "wb") as outfile:
     pickle.dump(li_target, outfile)
 
@@ -171,7 +165,7 @@ tags = {
     'run_id': run.id,
     '--metric-name': args.metric_name,
     '--second-metri': args.second_metric,
-    '--temporal-test-date': args.temporal_test_date,
+    # '--temporal-test-date': args.temporal_test_date,
     '--model-name': args.model_name
 }
 
@@ -179,9 +173,10 @@ model = Model.register(workspace=ws,
                        datasets=[('train dataset', ds_train), 
                                  ('val dataset', ds_val),
                                  ('test dataset', ds_test),
-                                 ('temporal_test dataset', ds_temporal_test)], 
+                                 # ('temporal_test dataset', ds_temporal_test)
+                                 ], 
                        tags={'run_id': run.id},
-                       description="Service Desk Concierge Model",
+                       # description="Service Desk Concierge Model",
                        model_name=args.model_name, 
                        resource_configuration=ResourceConfiguration(cpu=1, memory_in_gb=0.5),
                        model_path=model_directory)

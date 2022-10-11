@@ -54,7 +54,7 @@ def get_model_object(model_name):
 def create_deployment(deploy_name, online_endpoint_name, model, model_directory):
     env = Environment(
         # Copy pasted from "Environment" > "Transformer-DeBerta" (hardcoded)
-        image="scsccpsdsailabdevacr.azurecr.io/azureml/azureml_34a110fa59d918b9eec82cb2979ecb05",
+        image="mcr.microsoft.com/azureml/curated/azureml-automl-dnn-text-gpu:56",
     )
     
     if not exists(f'{model_directory}/score.py'):

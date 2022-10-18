@@ -5,7 +5,7 @@ def run_cmd(cmd):
     ps = run(cmd, stdout=PIPE, stderr=STDOUT, shell=True, text=True)
     print(ps.stdout)
 
-run_cmd('pip install --pre azure-ai-ml')
+run_cmd('pip install --pre azure-ai-ml==0.1.0b7')
 
 import argparse
 import datetime

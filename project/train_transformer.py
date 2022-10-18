@@ -82,11 +82,6 @@ def get_datasets(is_local, is_test, is_final):
         pdf_test = pd.read_parquet('../data/pdf_test.parquet')
 
         new_tokens = get_tokens()
-    elif is_test:
-        print('the job is a test job')
-        train, pdf_train = train_test_split(pdf_train, test_size=4000/pdf_train.shape[0], stratify=pdf_train[args.target_name])
-        train, pdf_validation = train_test_split(pdf_validation, test_size=4000/pdf_validation.shape[0], stratify=pdf_validation[args.target_name])
-        train, pdf_test = train_test_split(pdf_test, test_size=4000/pdf_test.shape[0], stratify=pdf_test[args.target_name])
     else:
         from azureml.core import Dataset
 
@@ -96,18 +91,24 @@ def get_datasets(is_local, is_test, is_final):
         # ds_validation = Dataset.get_by_name(ws, name="val_dataset")
         # ds_test = Dataset.get_by_name(ws, name="test_dataset")
 
-        ds_train = run.input_datasets['training_dataset']
-        ds_validation = run.input_datasets['val_dataset']
-        ds_test = run.input_datasets['test_dataset']
+        ds_train = run.input_datasets['train_set']
+        ds_validation = run.input_datasets['val_set']
+        ds_test = run.input_datasets['test_set']
 
         pdf_train = ds_train.to_pandas_dataframe()
         pdf_validation = ds_validation.to_pandas_dataframe()
         pdf_test = ds_test.to_pandas_dataframe()
 
-        if is_final:
-            pdf_train = pd.concat([pdf_train, pdf_validation, pdf_test])
-        
-        new_tokens = get_tokens(pdf_train)
+    if is_test:
+        print('the job is a test job')
+        _, pdf_train = train_test_split(pdf_train, test_size=4000/pdf_train.shape[0], stratify=pdf_train[args.target_name])
+        # _, pdf_validation = train_test_split(pdf_validation, test_size=4000/pdf_validation.shape[0], stratify=pdf_validation[args.target_name])
+        # _, pdf_test = train_test_split(pdf_test, test_size=4000/pdf_test.shape[0], stratify=pdf_test[args.target_name])
+
+    if is_final:
+        pdf_train = pd.concat([pdf_train, pdf_validation, pdf_test])
+    
+    new_tokens = get_tokens(pdf_train)
 
 
     print(f'pdf_train is imported with "{pdf_train.shape}" rows')

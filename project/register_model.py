@@ -9,15 +9,12 @@ import shutil
 import pickle
 import pandas as pd
 import numpy as np
-import torch
 from sklearn.metrics import precision_recall_fscore_support, accuracy_score, recall_score, precision_score, f1_score
 
 import azureml.core
 from azureml.core import Workspace, Experiment, Environment, Model, Dataset, Run
 from azureml.core.model import Model
 from azureml.core.resource_configuration import ResourceConfiguration
-from transformers import AutoTokenizer, Trainer, AutoModelForSequenceClassification, AutoTokenizer
-
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--is-test', type=int, dest='is_test', default=0, help='if is_test is passed as 1 then this is a short circuit job')
@@ -96,31 +93,51 @@ for run_id in dic_runs:
     #             # best_performing_run = dic_runs[run_id]
     #             li_test_values.append(test_f1_weighted)
 
+ds_train = None
+ds_val = None
+ds_test = None
+
 if not best_performing_run:
     print('No run is found')
 else:
     run = best_performing_run['run']
 
-    train_dataset = None
+    print(f'Best performing run for [{metric_name}] = {max(li_test_values)}')
+
+    ds_train = None
     temporal_dataset = None
 
+    print(f"run.get_details()['inputDatasets']: [{run.get_details()['inputDatasets']}]")
     for dataset in run.get_details()['inputDatasets']:
-        if dataset['dataset'].name == 'training_dataset':
-            train_dataset = dataset
+        print(f'dataset: {dataset}')
+        print(f"dataset['dataset']: {dataset['dataset']}")
+        print(f"type(dataset['dataset']): {type(dataset['dataset'])}")
+        print(f"dataset['dataset'].name: {dataset['dataset'].name}")
+        print(f"dataset['dataset'].version: {dataset['dataset'].version}")
+
+        
+        if dataset['dataset'].name == 'train_set':
+            ds_train = dataset['dataset']
+
+        if dataset['dataset'].name == 'val_set':
+            ds_val = dataset['dataset']
+
+        if dataset['dataset'].name == 'test_set':
+            ds_test = dataset['dataset']
         # elif dataset['dataset'].name == 'owner_g_classfication_temporal_test':
         #     temporal_dataset = dataset
 
     print(f'run id: {run.id}')
     # print(f'Temporal test date: {temporal_test_date}')
     print(f'{metric_name}: {best_performing_run["metrics"][metric_name]} - {second_metric}: {best_performing_run["metrics"][second_metric]}')
-    print(f'Train dataset name: {train_dataset["dataset"].name}, V:{train_dataset["dataset"].version}')
+    print(f"Train dataset name: {ds_train.name}, V:{ds_train.version}")
     # print(f'Train dataset name: {temporal_dataset["dataset"].name}, V:{temporal_dataset["dataset"].version}')
 
     run.log('run_id', run.id)
     # run.log('Temporal_test_date', temporal_test_date)
     run.log(f'best {metric_name}', f'{best_performing_run["metrics"][metric_name]}')
     run.log(f'best {second_metric}', f'{best_performing_run["metrics"][second_metric]}')
-    run.log('Train_dataset_name', f'{train_dataset["dataset"].name}, V:{train_dataset["dataset"].version}')
+    run.log('Train_dataset_name', f'{ds_train.name}, V:{ds_train.version}')
     # run.log('Train_dataset_name', f'{temporal_dataset["dataset"].name}, V:{temporal_dataset["dataset"].version}')
 
 print(f'Total number of valid runs: [{counter}]')
@@ -128,9 +145,6 @@ print(f'Total number of valid runs: [{counter}]')
 if not best_performing_run:
     os._exit(os.EX_OK)
 
-ds_train = Dataset.get_by_name(ws, name="training_dataset", version=train_dataset["dataset"].version)
-ds_val = Dataset.get_by_name(ws, name="val_dataset", version=train_dataset["dataset"].version)
-ds_test = Dataset.get_by_name(ws, name="test_dataset", version=train_dataset["dataset"].version)
 # ds_temporal_test = Dataset.get_by_name(ws, name="owner_g_classfication_temporal_test", version=temporal_dataset["dataset"].version)
 
 pdf_train = ds_train.to_pandas_dataframe()
@@ -178,5 +192,5 @@ model = Model.register(workspace=ws,
                        tags={'run_id': run.id},
                        # description="Service Desk Concierge Model",
                        model_name=args.model_name, 
-                       resource_configuration=ResourceConfiguration(cpu=1, memory_in_gb=0.5),
+                       resource_configuration=ResourceConfiguration(cpu=2, memory_in_gb=1),
                        model_path=model_directory)

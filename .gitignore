@@ -26,7 +26,5 @@ model_validation/__pycache__/*
 model_validation/project/*
 model_validation/output*/*
 assets/*tar.gz
-modeling/*
-model_x/*
-model_validation/*
+model*/*
 TestNB.ipynb

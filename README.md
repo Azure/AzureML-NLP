@@ -1,6 +1,6 @@
 # Accelerator - Fine-Tuning Language Model in AML with Custom Dataset
 
-This work is aimed to provide an example to fine-tune a custom NLP model using native AML capabilities including HyperDrive to tune the hyperparameters and Managed Endpoint to deploy the model. This version is developed using AML V1 although a the deployment of the model to Managed Endpoints is developed using SDK V2.
+This work is aimed to provide an example to fine-tune a custom NLP model using native AML capabilities including HyperDrive to tune the hyperparameters and Managed Endpoint to deploy the model. This version is developed using AML V1 although the deployment of the model to Managed Endpoints is developed using SDK V2.
 
 This work leverages [AML Pipelines V1](https://learn.microsoft.com/en-us/python/api/overview/azure/ml/?view=azure-ml-py&preserve-view=true). The model is trained using several models including [Bert Based Cased](https://huggingface.co/tftransformers/bert-base-cased) and is deployed in [Managed Endpoints using SDKV2](https://learn.microsoft.com/en-us/azure/machine-learning/how-to-deploy-managed-online-endpoints). In order to run the pipeline, you need to run the [DefinePipeline.ipynb](./DefinePipeline.ipynb) notebook.
 
@@ -8,6 +8,7 @@ This work leverages [AML Pipelines V1](https://learn.microsoft.com/en-us/python/
 
 ## Requirements
 * **Dataset** - Amazon Dataset is used - the details are explained below.
+* **AML Workspace** - This work is optimized for Azure Machine Learning, therefore you need to have an active Azure Subscription (free subscription works as well) and an Azure Machine Learning Workspace.
 * **AML Computes** - The training requires a GPU based compute. Ideally, an [NC6_V3](https://learn.microsoft.com/en-us/azure/virtual-machines/ncv3-series) which contains an [NVidia Tesla V100](https://www.nvidia.com/en-gb/data-center/tesla-v100/). After the training step, a CPU based [AML Cluster](https://learn.microsoft.com/en-us/azure/machine-learning/v1/how-to-create-attach-compute-cluster?tabs=python#what-is-a-compute-cluster) could be used for registration and deployment steps.
 * **Managed Endpoint** - The model is deployed as an online [Managed Endpoint](https://learn.microsoft.com/en-us/azure/machine-learning/how-to-deploy-managed-online-endpoints?tabs=azure-cli) to serve incoming requests.
 
@@ -21,7 +22,7 @@ This work is using AML Pipelines for easier operationalization of the workload. 
 
 This step is a [HyperDrive](https://learn.microsoft.com/en-us/python/api/azureml-pipeline-steps/azureml.pipeline.steps.hyperdrivestep?view=azure-ml-py) step which tunes a [HuggingFace Transformer Bert Base Cased](https://huggingface.co/tftransformers/bert-base-cased). The parameters of the step can help increasing the trials and test different combinations of hyperparameters to get to the best model.
 
-The most important parameters are `learning-rate` and `epochs`. During tests, we learned that `learning-rate` 5.5e-5 can generalize the unseen temporal test set better than other values. The `epoch` value is recommended to be set to 3 or 4 based on the Bert paper.
+The most important parameters are `learning-rate` and `epochs`. During tests, we learned that `learning-rate` 5.5e-5 can on this dataset. The `epoch` value is recommended to be set to 3 or 4 based on the Bert paper.
 
 ![Hyper Drive Trials](./assets/HyperDrive.jpg)
 

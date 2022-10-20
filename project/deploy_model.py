@@ -15,6 +15,8 @@ from os.path import exists
 import azureml.core
 from azureml.core import Run
 from azureml.core.model import Model as Modelv1
+from azureml.core import Workspace
+from azureml.core import Environment as Environmentv1
 
 from azure.ai.ml import MLClient
 from azure.ai.ml.entities import (
@@ -32,7 +34,7 @@ def create_endpoint(online_endpoint_name):
     # create an online endpoint
     endpoint = ManagedOnlineEndpoint(
         name=online_endpoint_name,
-        description="this is the online endpoint for the service desk model",
+        description="this is the online endpoint for the sentiment classifier",
         auth_mode="key"
     )
 
@@ -51,9 +53,11 @@ def get_model_object(model_name):
     model = Model(path=model_directory)
     return model, model_directory
 
+
+
 def create_deployment(deploy_name, online_endpoint_name, model, model_directory):
+
     env = Environment(
-        # Copy pasted from "Environment" > "Transformer-DeBerta" (hardcoded)
         image="mcr.microsoft.com/azureml/curated/azureml-automl-dnn-text-gpu:56",
     )
     
@@ -98,7 +102,6 @@ def delete_old_deployments(online_endpoint_name, skip_deploy_name):
         ml_client.online_deployments.delete(name=online_deployment, endpoint_name=online_endpoint_name)
     print(f'Deletion of the deployments are completed for: [{li_to_be_deleted_dep}]')
 
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--endpoint-name', type=str, dest='endpoint_name', help='Name of the endpoint')
@@ -111,6 +114,7 @@ if __name__ == "__main__":
 
     run = Run.get_context()
     parent_id = run.parent.id
+    
     ws = run.experiment.workspace
     exp = run.experiment
 

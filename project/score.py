@@ -14,8 +14,6 @@ from transformers import AutoTokenizer, Trainer, AutoModelForSequenceClassificat
 
 
 def load_model():
-    # run.download_files(prefix="outputs/model", output_directory=dir, timeout_seconds=6000)
- 
     model_directory = os.getenv("AZUREML_MODEL_DIR") + '/model'
     print(f'the output path: [{model_directory}]')
 
@@ -27,12 +25,13 @@ def load_model():
     with open(f"{model_directory}/target_list.json", "rb") as outfile:
         li_target = pickle.load(outfile)
 
-    num_labels = len(li_target) # len(pdf[target_field].unique())
+    num_labels = len(li_target)  # len(pdf[target_field].unique())
     print(f'Number of labels: [{num_labels}]')
 
-    model = AutoModelForSequenceClassification.from_pretrained(model_directory, num_labels=num_labels)
+    model = AutoModelForSequenceClassification.from_pretrained(
+        model_directory, num_labels=num_labels)
     tokenizer = AutoTokenizer.from_pretrained(model_directory)
-    le=joblib.load(model_directory + '/labelEncoder.joblib')
+    le = joblib.load(model_directory + '/labelEncoder.joblib')
 
     print('Model objects and their dependencies are loaded')
 
@@ -70,24 +69,14 @@ def tokenize_function(example):
 def generate_tokenized_dataset(pdf):
     from datasets import Dataset
     # pdf['labels'] = pdf[target_name]
-    
+
     pdf_cleaned = pdf.dropna()
     print(f'pdf_cleaned: {pdf_cleaned}')
     ds = Dataset.from_pandas(pdf_cleaned)
-    
+
     tokenized_dataset = ds.map(tokenize_function, batched=True)
     return tokenized_dataset
 
-
-def prepare_date(li_data):
-    li_data_final = []
-    for data in li_data:
-        department_src = data['department_src'].lower()
-        text = data['text']
-        li_data_final.append(f'{department_src} {text}')
-
-    df = pd.DataFrame(li_data_final, columns =['text'])
-    return df
 
 def run(raw_data):
     """
@@ -100,16 +89,8 @@ def run(raw_data):
     data = json.loads(raw_data)["data"]
     print(f'data: {data}')
 
-    preped_data = prepare_date(data)
-
-    print(f'preped_data: {preped_data}')
-    # data = numpy.array(data)
-
-    tokenized_data = generate_tokenized_dataset(preped_data)
-
+    tokenized_data = generate_tokenized_dataset(data)
     result = model.predict(tokenized_data)
-
-    # print(f'result: {result}')
 
     pred = np.argmax(result.predictions, axis=1)
     print(f'pred: {pred}')

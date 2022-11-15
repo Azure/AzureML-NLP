@@ -66,10 +66,13 @@ def tokenize_function(example):
     return tokenized_batch
 
 
-def generate_tokenized_dataset(pdf):
+def generate_tokenized_dataset(data):
     from datasets import Dataset
     # pdf['labels'] = pdf[target_name]
 
+    pdf = pd.DataFrame(data)
+    print('pdf')
+    print(pdf)
     pdf_cleaned = pdf.dropna()
     print(f'pdf_cleaned: {pdf_cleaned}')
     ds = Dataset.from_pandas(pdf_cleaned)

@@ -5,7 +5,7 @@ def run_cmd(cmd):
     ps = run(cmd, stdout=PIPE, stderr=STDOUT, shell=True, text=True)
     print(ps.stdout)
 
-run_cmd('pip install --pre azure-ai-ml==0.1.0b7')
+run_cmd('pip install --pre azure-ai-ml')
 
 import argparse
 import datetime
@@ -38,8 +38,10 @@ def create_endpoint(online_endpoint_name):
         auth_mode="key"
     )
 
-    ml_client.online_endpoints.begin_create_or_update(endpoint)
+    poller = ml_client.online_endpoints.begin_create_or_update(endpoint)
+    poller.wait()
     return endpoint
+
 
 def get_model_object(model_name):
     reg_model = Modelv1(ws, name=model_name)
@@ -54,9 +56,7 @@ def get_model_object(model_name):
     return model, model_directory
 
 
-
 def create_deployment(deploy_name, online_endpoint_name, model, model_directory):
-
     env = Environment(
         image="mcr.microsoft.com/azureml/curated/azureml-automl-dnn-text-gpu:56",
     )
@@ -76,7 +76,9 @@ def create_deployment(deploy_name, online_endpoint_name, model, model_directory)
         instance_count=1,
     )
 
-    ml_client.begin_create_or_update(deployment)
+    poller = ml_client.begin_create_or_update(deployment)
+    poller.wait()
+
     return deployment
 
 
@@ -91,6 +93,7 @@ def test_deployment(online_endpoint_name, deploy_name):
 
     return len(result) == 2
 
+
 def delete_old_deployments(online_endpoint_name, skip_deploy_name):
     li_to_be_deleted_dep = []
     for online_deployment in ml_client.online_deployments.list(online_endpoint_name):
@@ -101,6 +104,7 @@ def delete_old_deployments(online_endpoint_name, skip_deploy_name):
     for online_deployment in li_to_be_deleted_dep:
         ml_client.online_deployments.delete(name=online_deployment, endpoint_name=online_endpoint_name)
     print(f'Deletion of the deployments are completed for: [{li_to_be_deleted_dep}]')
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -142,6 +146,7 @@ if __name__ == "__main__":
         print(f'Traffic allocation is set to 100% for deployment [{deploy_name}]')
 
         delete_old_deployments(args.endpoint_name, deploy_name)
+
     else:
         raise SystemExit("The test of the deployment was not successful")
 

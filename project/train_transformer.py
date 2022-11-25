@@ -7,6 +7,7 @@ import time
 import glob
 import joblib
 
+from nvitop import ResourceMetricCollector
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score
 from sklearn import preprocessing
@@ -129,6 +130,55 @@ def test_model(trainer, ds, prefix):
 
     return test_result
 
+def on_collect(metrics):
+    try:
+        if not run:
+            return True
+
+        gpu_metrics = {}
+
+        for key in metrics.keys():
+            if 'mean' in key and not 'load_average' in key and not 'fan_speed' in key and 'pid' not in key:
+                symbole = ' %' if '%' in key else ''
+                key_name = key.split(' ')[0] + symbole
+                value = round(metrics[key], 2) if metrics[key] else 0
+                if 'gpu' in key:
+                    # gpu_metrics[key_name] = value
+                    gpu_name_g = re.search(r'/gpu:\d+/', key_name)
+                    gpu_name = gpu_name_g.group()
+                    
+                    if gpu_name in gpu_metrics:
+                        gpu_metrics[gpu_name][key_name] = value
+                    else:
+                        gpu_metrics[gpu_name] = {
+                            key_name: value
+                        }
+                else:
+                    if run:
+                        run.log(key_name, value)
+        
+        for gpu_name in gpu_metrics.keys():
+            mem_vals = {}
+            perc_vals = {}
+            for metrics_name in gpu_metrics[gpu_name]:
+                if '%' in metrics_name:
+                    perc_vals[metrics_name] = gpu_metrics[gpu_name][metrics_name]
+                elif 'memory' in metrics_name:
+                    mem_vals[metrics_name] = gpu_metrics[gpu_name][metrics_name]
+                else:
+                    if run:
+                        run.log(key_name, value)
+
+            if run:
+                run.log_row(f"{gpu_name} utilization", **perc_vals)
+                run.log_row(f"{gpu_name} memory", **mem_vals)
+                
+    except Exception as exp:
+        print(exp)
+        
+    return True
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--base-checkpoint', type=str, dest='base_checkpoint', default='bert-base-uncased', help='base model name')
@@ -147,6 +197,8 @@ if __name__ == "__main__":
     parser.add_argument('--adam-beta2', type=float, dest="adam_beta2", default=0.999, help='setting adam-beta2 for the TrainingArguments')
     parser.add_argument('--adam-epsilon', type=float, dest="adam_epsilon", default=1e-8, help='setting adam-epsilon for the TrainingArguments')
     parser.add_argument('--evaluation-strategy', type=str, dest='evaluation_strategy', default='epoch', help='evaluation strategy')
+    parser.add_argument('--collect-resource-utilization', type=int, dest='collect_resource_utilization', default=1, help='whether or not to collect granular resource utilization as metrics')
+    parser.add_argument('--resource-utilization-interval', type=float, dest='resource_utilization_interval', default=5.0, help='the interval (in seconds) in which the resource utilization is collected')
 
     run = Run.get_context()
 
@@ -171,6 +223,12 @@ if __name__ == "__main__":
     adam_beta2 = args.adam_beta2
     adam_epsilon = args.adam_epsilon
     evaluation_strategy = args.evaluation_strategy
+    collect_resource_utilization = args.collect_resource_utilization
+    resource_utilization_interval = args.resource_utilization_interval
+
+    if collect_resource_utilization == 1:
+        collector = ResourceMetricCollector(interval=resource_utilization_interval)
+        daemon = collector.daemonize(on_collect, interval=None, tag="")
 
     print(f"run.input_datasets [{run.input_datasets}]")
     
@@ -193,26 +251,22 @@ if __name__ == "__main__":
     print(f'adam_beta2: {adam_beta2}')
     print(f'adam_epsilon: {adam_epsilon}')
     print(f'evaluation_strategy: {evaluation_strategy}')
+    print(f'evaluation_strategy: {evaluation_strategy}')
+    print(f'collect_resource_utilization: {collect_resource_utilization}')
+    print(f'resource_utilization_interval: {resource_utilization_interval}')
 
     model_path = 'outputs/model'
     if is_jump == 1:
         os.makedirs(model_path, exist_ok=True)
 
-
         with open(f'{model_path}/temp.txt', 'w') as f:
-            f.write('Create a new text file!')
+            f.write('Create a dummy file !')
 
         run.log('test_val', 1)
         run.log('test_val', 5)
         run.log('test_val', 9)
         run.log('test_val', 4)
         run.log('test_val', 12)
-
-        run.log('test_val_2', 1+5)
-        run.log('test_val_2', 5+5)
-        run.log('test_val_2', 9+5)
-        run.log('test_val_2', 4+5)
-        run.log('test_val_2', 12+5)
 
         os._exit(os.EX_OK)
 

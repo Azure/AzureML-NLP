@@ -52,7 +52,7 @@ def get_model_object(model_name):
     prefix_path = "model"
     model_directory = f'{dir}/{prefix_path}'
 
-    model = Model(path=model_directory)
+    model = Model(name=model_name, path=model_directory)
     return model, model_directory
 
 
@@ -72,7 +72,7 @@ def create_deployment(deploy_name, online_endpoint_name, model, model_directory)
         code_configuration=CodeConfiguration(
             code=model_directory, scoring_script="score.py"
         ),
-        instance_type="Standard_F2s_v2",
+        instance_type="Standard_E2s_v3",
         instance_count=1,
     )
 
@@ -102,8 +102,8 @@ def delete_old_deployments(online_endpoint_name, skip_deploy_name):
 
     print(f'Deleting deployments: [{li_to_be_deleted_dep}]')
     for online_deployment in li_to_be_deleted_dep:
-        ml_client.online_deployments.delete(name=online_deployment, endpoint_name=online_endpoint_name)
-    print(f'Deletion of the deployments are completed for: [{li_to_be_deleted_dep}]')
+        ml_client.online_deployments.begin_delete(name=online_deployment, endpoint_name=online_endpoint_name)
+    print(f'Deletion of the deployments is started for: [{li_to_be_deleted_dep}]')
 
 
 if __name__ == "__main__":
@@ -139,6 +139,7 @@ if __name__ == "__main__":
 
     is_success = test_deployment(args.endpoint_name, deploy_name)
     print(f'Testing the deployment is completed')
+    
     if is_success:
         print(f'Testing of the deployment is SUCCESSFUL')
         endpoint.traffic = {deploy_name: 100}
@@ -146,10 +147,6 @@ if __name__ == "__main__":
         print(f'Traffic allocation is set to 100% for deployment [{deploy_name}]')
 
         delete_old_deployments(args.endpoint_name, deploy_name)
-
     else:
         raise SystemExit("The test of the deployment was not successful")
-
-
-        
 

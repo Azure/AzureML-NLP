@@ -149,4 +149,3 @@ if __name__ == "__main__":
         delete_old_deployments(args.endpoint_name, deploy_name)
     else:
         raise SystemExit("The test of the deployment was not successful")
-

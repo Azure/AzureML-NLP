@@ -72,7 +72,7 @@ def create_deployment(deploy_name, online_endpoint_name, model, model_directory)
         code_configuration=CodeConfiguration(
             code=model_directory, scoring_script="score.py"
         ),
-        instance_type="Standard_F2s_v2",
+        instance_type="Standard_E2s_v3",
         instance_count=1,
     )
 

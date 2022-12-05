@@ -28,3 +28,6 @@ model_validation/output*/*
 assets/*tar.gz
 model*/*
 TestNB.ipynb
+test_trainer/*
+test_deployment.py
+TestResourceUtilization.ipynb

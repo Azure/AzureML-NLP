@@ -9,7 +9,7 @@ import joblib
 
 from nvitop import ResourceMetricCollector
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score
+from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score, roc_auc_score
 from sklearn import preprocessing
 import torch
 from transformers import TrainingArguments, Trainer
@@ -45,13 +45,16 @@ def compute_metrics(p):
     recall = recall_score(y_true=labels, y_pred=pred, average='macro')
     precision = precision_score(y_true=labels, y_pred=pred, average='macro')
     f1 = f1_score(y_true=labels, y_pred=pred, average='macro')
+    auc_score = roc_auc_score(y_true=labels, y_pred=pred, average='macro')
 
     recall_weighted = recall_score(y_true=labels, y_pred=pred, average='weighted')
     precision_weighted = precision_score(y_true=labels, y_pred=pred, average='weighted')
     f1_weighted = f1_score(y_true=labels, y_pred=pred, average='weighted')
+    auc_score_weighed = roc_auc_score(y_true=labels, y_pred=pred, average='weighted')
 
     return {"accuracy": accuracy, "precision": precision, "recall": recall, "f1": f1, 
-            "recall_weighted": recall_weighted, "precision_weighted": precision_weighted, "f1_weighted": f1_weighted}
+            "recall_weighted": recall_weighted, "precision_weighted": precision_weighted, "f1_weighted": f1_weighted,
+            "AUC": auc_score, "AUC_weighed": auc_score_weighed}
 
 def get_encode_labels(pdf, text_field_name):
     le = preprocessing.LabelEncoder()

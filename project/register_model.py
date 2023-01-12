@@ -11,6 +11,7 @@ import pandas as pd
 import numpy as np
 from sklearn.metrics import precision_recall_fscore_support, accuracy_score, recall_score, precision_score, f1_score
 
+import azureml.core
 from azureml.core import Workspace, Experiment, Environment, Model, Dataset, Run
 from azureml.core.model import Model
 from azureml.core.resource_configuration import ResourceConfiguration
@@ -33,9 +34,9 @@ ws = run.experiment.workspace
 exp = run.experiment
 
 counter = 0
+best_temporal_f1_weighted = 0.0
 is_test = args.is_test
 test_run_id = args.test_run_id
-
 
 
 all_runs = exp.get_runs(include_children=True)
@@ -43,7 +44,6 @@ dic_runs = {}
 
 print('Run {} will be used {}'.format(run, run.id))
 print('Experiment {} will be used'.format(exp))
-
 
 for i, run in enumerate(all_runs):
     if is_test:
@@ -68,26 +68,34 @@ print(f'len(dic_runs) = {len(dic_runs)}')
 
 metric_name = args.metric_name
 second_metric = args.second_metric
+# temporal_test_date = args.temporal_test_date
 
 li_test_values = []
 best_performing_run = None
 
 for run_id in dic_runs:
     print('run_id', run_id)
-    test_metric = dic_runs[run_id]['metrics'][metric_name]
-    if (type(test_metric) == list):
-        test_metric = float(test_metric[0])
+    test_f1_weighted = dic_runs[run_id]['metrics'][metric_name]
+    if (type(test_f1_weighted) == list):
+        test_f1_weighted = float(test_f1_weighted[0])
     else:
-        test_metric = float(test_metric)
-    print(f'{metric_name} = {test_metric}')
+        test_f1_weighted = float(test_f1_weighted)
+    print(f'{metric_name} = {test_f1_weighted}')
     
-    if len(li_test_values) == 0 or (len(li_test_values) > 0 and test_metric > max(li_test_values)):
+    if len(li_test_values) == 0 or (len(li_test_values) > 0 and test_f1_weighted > max(li_test_values)):
         # if temporal_test_date == None:
         best_performing_run = dic_runs[run_id]
 
-    li_test_values.append(test_metric)
+    # if temporal_test_date == None:
+    li_test_values.append(test_f1_weighted)
 
- 
+    # if temporal_test_date:
+    #     dataset = dic_runs[run_id]['run'].get_details()['inputDatasets'][0]
+    #     if 'temporal_test_date' in dataset['dataset'].tags:
+    #         if dataset['dataset'].tags['temporal_test_date'] == temporal_test_date:
+    #             # best_performing_run = dic_runs[run_id]
+    #             li_test_values.append(test_f1_weighted)
+
 ds_train = None
 ds_val = None
 ds_test = None
@@ -98,7 +106,6 @@ else:
     run = best_performing_run['run']
 
     print(f'Best performing run for [{metric_name}] = {max(li_test_values)}')
-    print(f'Best performing run saved for [{metric_name}] = {run["metrics"][metric_name]}')
 
     ds_train = None
     temporal_dataset = None
@@ -124,19 +131,24 @@ else:
         #     temporal_dataset = dataset
 
     print(f'run id: {run.id}')
+    # print(f'Temporal test date: {temporal_test_date}')
     print(f'{metric_name}: {best_performing_run["metrics"][metric_name]} - {second_metric}: {best_performing_run["metrics"][second_metric]}')
     print(f"Train dataset name: {ds_train.name}, V:{ds_train.version}")
-   
+    # print(f'Train dataset name: {temporal_dataset["dataset"].name}, V:{temporal_dataset["dataset"].version}')
+
     run.log('run_id', run.id)
+    # run.log('Temporal_test_date', temporal_test_date)
     run.log(f'best {metric_name}', f'{best_performing_run["metrics"][metric_name]}')
     run.log(f'best {second_metric}', f'{best_performing_run["metrics"][second_metric]}')
     run.log('Train_dataset_name', f'{ds_train.name}, V:{ds_train.version}')
-   
+    # run.log('Train_dataset_name', f'{temporal_dataset["dataset"].name}, V:{temporal_dataset["dataset"].version}')
+
 print(f'Total number of valid runs: [{counter}]')
 
 if not best_performing_run:
     os._exit(os.EX_OK)
 
+# ds_temporal_test = Dataset.get_by_name(ws, name="owner_g_classfication_temporal_test", version=temporal_dataset["dataset"].version)
 
 pdf_train = ds_train.to_pandas_dataframe()
 

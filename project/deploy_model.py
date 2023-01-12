@@ -28,7 +28,7 @@ from azure.ai.ml.entities import (
 )
 from azure.ai.ml import MLClient
 from azure.ai.ml.identity import AzureMLOnBehalfOfCredential 
-from azure.identity import AzureCliCredential
+from azure.identity import AzureCliCredential, ManagedIdentityCredential 
 
 def create_endpoint(online_endpoint_name):
     # create an online endpoint
@@ -121,9 +121,10 @@ if __name__ == "__main__":
     
     ws = run.experiment.workspace
     exp = run.experiment
+    
 
     ml_client = MLClient(
-         AzureMLOnBehalfOfCredential(), ws.subscription_id, ws.resource_group, ws.name
+         ManagedIdentityCredential (), ws.subscription_id, ws.resource_group, ws.name
     )
 
     endpoint = create_endpoint(args.endpoint_name)

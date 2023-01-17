@@ -6,6 +6,7 @@ import re
 import time
 import glob
 import joblib
+import mlflow
 
 from nvitop import ResourceMetricCollector
 from sklearn.model_selection import train_test_split
@@ -87,20 +88,11 @@ def get_datasets(is_local, is_test, is_final):
         new_tokens = get_tokens()
     else:
         from azureml.core import Dataset
-
-        ws = run.experiment.workspace
         
-        # ds_train = Dataset.get_by_name(ws, name="training_dataset")
-        # ds_validation = Dataset.get_by_name(ws, name="val_dataset")
-        # ds_test = Dataset.get_by_name(ws, name="test_dataset")
-
-        ds_train = run.input_datasets['train_set']
-        ds_validation = run.input_datasets['val_set']
-        ds_test = run.input_datasets['test_set']
-
-        pdf_train = ds_train.to_pandas_dataframe()
-        pdf_validation = ds_validation.to_pandas_dataframe()
-        pdf_test = ds_test.to_pandas_dataframe()
+        pdf_train = pd.read_csv(training_dataset)
+        pdf_validation = pd.read_csv(val_dataset)
+        pdf_test = pd.read_csv(test_dataset)
+        
 
     if is_test:
         print('the job is a test job')
@@ -127,14 +119,17 @@ def test_model(trainer, ds, prefix):
     # print(f'len(metrics): {metrics}')
     
     for m in metrics:
-        print(f'{prefix}_{m.replace("test_", "")}', f'{test_result.metrics[m]}')
-        run.log(f'{prefix}_{m.replace("test_", "")}', f'{test_result.metrics[m]}')
+        metric_name = f'{prefix}_{m.replace("test_", "")}'
+        metric_value = test_result.metrics[m]
+        
+        print(metric_name, metric_value)
+        mlflow.log_metric(metric_name, metric_value)
 
     return test_result
 
 def on_collect(metrics):
     try:
-        if not run:
+        if not mlflow.active_run().info.run_id:
             return True
 
         gpu_metrics = {}
@@ -156,8 +151,7 @@ def on_collect(metrics):
                             key_name: value
                         }
                 else:
-                    if run:
-                        run.log(key_name, value)
+                    mlflow.log_metric(key_name, value)
         
         for gpu_name in gpu_metrics.keys():
             mem_vals = {}
@@ -168,12 +162,10 @@ def on_collect(metrics):
                 elif 'memory' in metrics_name:
                     mem_vals[metrics_name] = gpu_metrics[gpu_name][metrics_name]
                 else:
-                    if run:
-                        run.log(key_name, value)
+                    mlflow.log_metric(key_name, value)
 
-            if run:
-                run.log_row(f"{gpu_name} utilization", **perc_vals)
-                run.log_row(f"{gpu_name} memory", **mem_vals)
+            mlflow.log_metric(f"{gpu_name} utilization", **perc_vals)
+            mlflow.log_metric(f"{gpu_name} memory", **mem_vals)
                 
     except Exception as exp:
         print(exp)
@@ -184,6 +176,9 @@ def on_collect(metrics):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--base-checkpoint', type=str, dest='base_checkpoint', default='bert-base-uncased', help='base model name')
+    parser.add_argument('--training-dataset', type=str, dest='training_dataset', help='Training dataset')
+    parser.add_argument('--val-dataset', type=str, dest='val_dataset', help='Validation dataset')
+    parser.add_argument('--test-dataset', type=str, dest='test_dataset', help='Test dataset')
     parser.add_argument('--target-name', type=str, dest='target_name', default='target', help='target column name')
     parser.add_argument('--text-field-name', type=str, dest='text_field_name', default='text_field', help='text field name')
     parser.add_argument('--is-test', type=int, dest='is_test', default=0, help='1 if this is a test run')
@@ -202,7 +197,8 @@ if __name__ == "__main__":
     parser.add_argument('--collect-resource-utilization', type=int, dest='collect_resource_utilization', default=1, help='whether or not to collect granular resource utilization as metrics')
     parser.add_argument('--resource-utilization-interval', type=float, dest='resource_utilization_interval', default=5.0, help='the interval (in seconds) in which the resource utilization is collected')
 
-    run = Run.get_context()
+    # run = Run.get_context()
+    mlflow.start_run()
 
     # args = parser.parse_args()
     args, unknown = parser.parse_known_args()
@@ -210,6 +206,9 @@ if __name__ == "__main__":
     print(f'unknown arguments: {unknown}')
 
     base_checkpoint = args.base_checkpoint
+    training_dataset = args.training_dataset
+    val_dataset = args.val_dataset
+    test_dataset = args.test_dataset
     text_field_name = args.text_field_name
     target_name = args.target_name
     batch_size = args.batch_size
@@ -232,12 +231,15 @@ if __name__ == "__main__":
         collector = ResourceMetricCollector(interval=resource_utilization_interval)
         daemon = collector.daemonize(on_collect, interval=None, tag="")
 
-    print(f"run.input_datasets [{run.input_datasets}]")
+    # print(f"run.input_datasets [{run.input_datasets}]")
     
     if is_test:
         no_epochs = 1
 
     print(f'base_checkpoint: {base_checkpoint}')
+    print(f'training_dataset: {training_dataset}')
+    print(f'val_dataset: {val_dataset}')
+    print(f'test_dataset: {test_dataset}')
     print(f'text_field_name: {text_field_name}')
     print(f'target_name: {target_name}')
     print(f'batch_size: {batch_size}')
@@ -264,15 +266,13 @@ if __name__ == "__main__":
         with open(f'{model_path}/temp.txt', 'w') as f:
             f.write('Create a dummy file !')
 
-        run.log('test_val', 1)
-        run.log('test_val', 5)
-        run.log('test_val', 9)
-        run.log('test_val', 4)
-        run.log('test_val', 12)
+        mlflow.log_metric('test_val', 1)
+        mlflow.log_metric('test_val', 5)
+        mlflow.log_metric('test_val', 9)
+        mlflow.log_metric('test_val', 4)
+        mlflow.log_metric('test_val', 12)
 
         os._exit(os.EX_OK)
-
-    os.environ["DISABLE_MLFLOW_INTEGRATION"] = "TRUE"
 
     pdf_train, pdf_validation, pdf_test, new_tokens = get_datasets(is_local, is_test, is_final)
 
@@ -298,6 +298,7 @@ if __name__ == "__main__":
     args = TrainingArguments(
         output_dir="outputs",
         evaluation_strategy=evaluation_strategy, # "steps", # "epoch"
+        save_strategy=evaluation_strategy,
         eval_steps=500,
         per_device_train_batch_size=batch_size,
         per_device_eval_batch_size=batch_size,
@@ -319,11 +320,10 @@ if __name__ == "__main__":
         eval_dataset=tokenized_validation_ds,
         data_collator=data_collator,
         tokenizer=tokenizer,
-        compute_metrics=compute_metrics,
-        callbacks=[AzureMLCallback(azureml_run=run)]
+        compute_metrics=compute_metrics
     )
 
-    trainer.callback_handler.remove_callback(MLflowCallback)
+    # trainer.callback_handler.remove_callback(MLflowCallback)
 
     # Train pre-trained model
     print("Training started")
@@ -346,6 +346,8 @@ if __name__ == "__main__":
     print("Test is started")
     test_model(trainer, tokenized_test_ds, 'test')
     print("Test is completed")
+
+    mlflow.end_run()
 
     # print("Temporal test is started")
     # test_model(trainer, tokenized_temporal_test_ds, 'temporal_test')

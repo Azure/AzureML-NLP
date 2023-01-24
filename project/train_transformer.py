@@ -300,6 +300,7 @@ if __name__ == "__main__":
     args = TrainingArguments(
         output_dir="outputs",
         evaluation_strategy=evaluation_strategy, # "steps", # "epoch"
+        save_strategy=evaluation_strategy,
         eval_steps=500,
         per_device_train_batch_size=batch_size,
         per_device_eval_batch_size=batch_size,

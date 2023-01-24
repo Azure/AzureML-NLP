@@ -9,12 +9,12 @@ import shutil
 import pickle
 import pandas as pd
 import numpy as np
-from sklearn.metrics import precision_recall_fscore_support, accuracy_score, recall_score, precision_score, f1_score
 
 import azureml.core
 from azureml.core import Workspace, Experiment, Environment, Model, Dataset, Run
 from azureml.core.model import Model
 from azureml.core.resource_configuration import ResourceConfiguration
+from azureml.train.automl.run import AutoMLRun
 
 #############################################
 ###  Find Best perorming Run for Pipeline
@@ -103,6 +103,71 @@ def find_run_datasets(run):
             ds_test = dataset['dataset']
 
     return ds_train, ds_val, ds_test    
+    
+def register_automl_model(ws, best_run, model_name,  datasets, tags):
+    #model_output = pipeline_run.get_pipeline_output("model_output")
+    #print("Pipeline Data ==============: {}".format(model_output._path_on_datastore))
+
+    best_exp = best_run.experiment
+
+    automl_run = AutoMLRun(best_exp, run_id = best_run.id)
+    print('AutoML Run ----------------{} -----------------'.format(automl_run))
+    best_model_run = automl_run.get_best_child()
+
+    print('best_model_run  {} '.format(best_model_run))
+   
+    model_output_dir = './model'
+
+    os.makedirs(model_output_dir, exist_ok=True)
+    best_model_run.download_files(prefix="outputs/", output_directory=model_output_dir,append_prefix=False)
+
+    shutil.copy('score_automl.py', f'{model_output_dir}/score.py')
+    shutil.copy('conda_env_automl.yml', './model/conda_env.yml')
+    shutil.copy('sample_request_automl.json', './model/sample_request.json')
+    print(' Dir {} '.format(os.listdir(model_output_dir)))
+  
+    # Register the Model
+    model = Model.register(workspace=ws, 
+                        datasets=datasets,
+                        tags=tags,
+                        model_name=model_name, 
+                        resource_configuration=ResourceConfiguration(cpu=2, memory_in_gb=1),
+                        model_path=model_output_dir)
+
+
+def register_hyperdrive_model(ws,best_run, model_name, datasets, tags):
+    # Download Best Model
+    dir = f'output'
+
+    isdir = os.path.isdir(dir)
+    if isdir:
+        shutil.rmtree(dir)
+
+    model_directory = f'{dir}/outputs/model'
+    os.makedirs(model_directory,exist_ok=True)
+    print(f'the output path: [{model_directory}]')
+    
+    best_run.download_files(prefix="outputs/model", output_directory=dir, timeout_seconds=6000)
+
+    shutil.copy('score.py', model_directory)
+    shutil.copy('conda_env_automl.yml', f'{model_directory}/conda_env.yml')
+    shutil.copy('sample_request.json', model_directory)
+   
+    num_labels = len(pdf_train[args.target_name].unique())
+    print(f'Number of labels: [{num_labels}]')
+
+    li_target = list(pdf_train[args.target_name].unique())
+    with open(f"{model_directory}/target_list.json", "wb") as outfile:
+        pickle.dump(li_target, outfile)
+
+    # Register the Model
+  
+    model = Model.register(workspace=ws, 
+                        datasets=datasets, 
+                        tags=tags,
+                        model_name=model_name, 
+                        resource_configuration=ResourceConfiguration(cpu=2, memory_in_gb=1),
+                        model_path=model_directory)
 
 #############################################
 ###   Main
@@ -124,7 +189,8 @@ if __name__ == "__main__":
     is_test = args.is_test
     test_run_id = args.test_run_id
     metric_name = args.metric_name
-   
+    model_name = args.model_name
+
     run = Run.get_context()
     parent_id = run.parent.id
     ws = run.experiment.workspace
@@ -137,8 +203,8 @@ if __name__ == "__main__":
     pipeline_run = ws.get_run(parent_id)
 
     print('pipeline_run -- {} will be used'.format(pipeline_run))
-
-    ## Find best run based on metric passed
+   
+    ### Find best run based on metric passed
     best_performing_run, li_test_values = find_best_run(pipeline_run, metric_name, is_test, test_run_id)
     if not best_performing_run:
         print('No run is found')
@@ -149,56 +215,37 @@ if __name__ == "__main__":
     print(f'Best performing run for [{metric_name}] = {max(li_test_values)}')
     print(f'run id: {best_run.id}')
     
-    run.log('run_id', best_run.id)
+    run.log('best_run_id', best_run.id)
     run.log(f'best {metric_name}', f'{best_performing_run["metrics"][metric_name]}')
     print(f'{metric_name}: {best_performing_run["metrics"][metric_name]}')
    
+    ##### Check is Best Run is AUtoML
     is_automl_best=False
     if "AutoML" in best_run.name: 
        is_automl_best=True
        best_run = next(r for r in pipeline_run.get_children(recursive=True) if r.name == 'AutoML_Classification')
-     
-    print(f'!!! Best model found by AutoML: {is_automl_best} !!!! ')
+       print(f'!!! Best model found by AutoML !!!! ')
+    else:
+       print(f'!!! Best model found by HyperDrive !!!! ')
+
+    print('best run_id', best_run.id) 
     run.log('is_automl_best', is_automl_best)
     
-    # Find datasets
-    ds_train, ds_val = find_run_datasets(best_run)  
+    #### Find  Best Run datasets and Tags
+    ds_train, ds_val, ds_test = find_run_datasets(best_run)  
     pdf_train = ds_train.to_pandas_dataframe()
     print(f"Train dataset name: {ds_train.name}, V:{ds_train.version}")
-
-   
-    # Download Best Model
-    dir = f'output'
-
-    isdir = os.path.isdir(dir)
-    if isdir:
-        shutil.rmtree(dir)
-
-    best_run.download_files(prefix="outputs/model", output_directory=dir, timeout_seconds=6000)
-
-    model_directory = f'{dir}/outputs/model'
-    print(f'the output path: [{model_directory}]')
-    shutil.copy('score.py', model_directory)
-
-    num_labels = len(pdf_train[args.target_name].unique())
-    print(f'Number of labels: [{num_labels}]')
-
-    li_target = list(pdf_train[args.target_name].unique())
-    with open(f"{model_directory}/target_list.json", "wb") as outfile:
-        pickle.dump(li_target, outfile)
-
-    # Register the Model
+    datasets=[('train dataset', ds_train),
+                ('val dataset', ds_val)
+             ]
     tags = {
         'run_id': best_run.id,
-        '--metric-name': args.metric_name,
-         '--model-name': args.model_name
+        '--metric-name': metric_name,
+         '--model-name': model_name
     }
+   
+    if is_automl_best == True:
+        register_automl_model(ws, best_run, model_name,  datasets, tags)
+    else:
+        register_hyperdrive_model(ws, best_run, model_name,  datasets, tags)
 
-    model = Model.register(workspace=ws, 
-                        datasets=[('train dataset', ds_train),
-                                   ('val dataset', ds_val)
-                                 ], 
-                        tags=tags,
-                        model_name=args.model_name, 
-                        resource_configuration=ResourceConfiguration(cpu=2, memory_in_gb=1),
-                        model_path=model_directory)

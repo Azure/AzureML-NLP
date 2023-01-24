@@ -58,7 +58,7 @@ def init():
 
     # AZUREML_MODEL_DIR is an environment variable created during deployment.
     # It is the path to the model folder (./azureml-models/$MODEL_NAME/$VERSION)
-    logging.info("Init complete")
+    logging.info("Score Init complete")
 
 
 def tokenize_function(example):
@@ -87,7 +87,7 @@ def run(raw_data):
     In the example we extract the data from the json input and call the scikit-learn model's predict()
     method and return the result back
     """
-    logging.info("Request received")
+    logging.info("Score Request received")
     print(f'raw data: {raw_data}')
     data = json.loads(raw_data)["data"]
     print(f'data: {data}')

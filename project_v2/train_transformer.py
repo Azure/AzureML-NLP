@@ -6,13 +6,15 @@ import re
 import time
 import glob
 import joblib
+import torch
 import mlflow
+import pickle
+import shutil
 
 from nvitop import ResourceMetricCollector
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score, roc_auc_score
 from sklearn import preprocessing
-import torch
 from transformers import TrainingArguments, Trainer
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 from transformers import EarlyStoppingCallback
@@ -179,6 +181,7 @@ if __name__ == "__main__":
     parser.add_argument('--training-dataset', type=str, dest='training_dataset', help='Training dataset')
     parser.add_argument('--val-dataset', type=str, dest='val_dataset', help='Validation dataset')
     parser.add_argument('--test-dataset', type=str, dest='test_dataset', help='Test dataset')
+    parser.add_argument('--model-path', type=str, dest='model_path', help='Model path')
     parser.add_argument('--target-name', type=str, dest='target_name', default='target', help='target column name')
     parser.add_argument('--text-field-name', type=str, dest='text_field_name', default='text_field', help='text field name')
     parser.add_argument('--is-test', type=int, dest='is_test', default=0, help='1 if this is a test run')
@@ -209,6 +212,7 @@ if __name__ == "__main__":
     training_dataset = args.training_dataset
     val_dataset = args.val_dataset
     test_dataset = args.test_dataset
+    model_path = args.model_path
     text_field_name = args.text_field_name
     target_name = args.target_name
     batch_size = args.batch_size
@@ -240,6 +244,7 @@ if __name__ == "__main__":
     print(f'training_dataset: {training_dataset}')
     print(f'val_dataset: {val_dataset}')
     print(f'test_dataset: {test_dataset}')
+    print(f'model_path: {model_path}')
     print(f'text_field_name: {text_field_name}')
     print(f'target_name: {target_name}')
     print(f'batch_size: {batch_size}')
@@ -259,18 +264,17 @@ if __name__ == "__main__":
     print(f'collect_resource_utilization: {collect_resource_utilization}')
     print(f'resource_utilization_interval: {resource_utilization_interval}')
 
-    model_path = 'outputs/model'
+    # model_path = 'outputs/model'
     if is_jump == 1:
         os.makedirs(model_path, exist_ok=True)
 
         with open(f'{model_path}/temp.txt', 'w') as f:
             f.write('Create a dummy file !')
 
-        mlflow.log_metric('test_val', 1)
-        mlflow.log_metric('test_val', 5)
-        mlflow.log_metric('test_val', 9)
-        mlflow.log_metric('test_val', 4)
-        mlflow.log_metric('test_val', 12)
+        with open(f'{model_path}/temp2.txt', 'w') as f:
+            f.write('Create a dummy file !')
+
+        mlflow.log_metric('test_f1_weighted', 0.5)
 
         os._exit(os.EX_OK)
 
@@ -329,11 +333,18 @@ if __name__ == "__main__":
     print("Training started")
     trainer.train()
     print("Training is finished")
+    # mlflow.pytorch.save_model(trainer, model_path)
     trainer.save_model(model_path)
 
     # to save encoder 
     joblib.dump(le, f'{model_path}/labelEncoder.joblib',compress=9)
-    print("Model and encoder are saved")
+    li_target = list(pdf_train[target_name].unique())
+    with open(f"{model_path}/target_list.json", "wb") as outfile:
+        pickle.dump(li_target, outfile)
+
+    shutil.copy('score.py', model_path)
+
+    print(f"Model and the assets are saved to {model_path}")
 
     print("Evaluation is started")
     trainer.evaluate()

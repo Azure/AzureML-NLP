@@ -1,0 +1,21 @@
+
+channels:
+  - pytorch
+  - anaconda
+  - conda-forge
+dependencies:
+  - python=3.7
+  - pip
+  - pip:
+      - azure-ai-ml
+      - mlflow
+      - azureml-mlflow
+      - nvitop
+      - transformers
+      - joblib
+      - datasets
+  - numpy
+  - pandas
+  - shap
+  - scikit-learn
+name: sdk_v2_cpu

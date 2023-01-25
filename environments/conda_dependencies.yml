@@ -12,6 +12,7 @@ dependencies:
       - azureml-mlflow==1.42.0
       - nvitop
       - transformers
+      - inference-schema
       - joblib
       - datasets
   - numpy~=1.21.6

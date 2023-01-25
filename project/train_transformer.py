@@ -40,20 +40,22 @@ def get_tokens(pdf = None):
 def compute_metrics(p):
     pred, labels = p
     pred = np.argmax(pred, axis=1)
+    #y_score = np.transpose([predict[:, 1] for predict in pred])
 
     accuracy = accuracy_score(y_true=labels, y_pred=pred)
     recall = recall_score(y_true=labels, y_pred=pred, average='macro')
     precision = precision_score(y_true=labels, y_pred=pred, average='macro')
     f1 = f1_score(y_true=labels, y_pred=pred, average='macro')
-    auc = roc_auc_score(y_true=labels, y_score=pred, average='macro')
+    auc_score = roc_auc_score(y_true=labels, y_score=pred, average='macro')
 
     recall_weighted = recall_score(y_true=labels, y_pred=pred, average='weighted')
     precision_weighted = precision_score(y_true=labels, y_pred=pred, average='weighted')
     f1_weighted = f1_score(y_true=labels, y_pred=pred, average='weighted')
-    auc_weighted = roc_auc_score(y_true=labels, y_score=pred, average='weighted')
+    auc_score_weighted = roc_auc_score(y_true=labels, y_score=pred, average='weighted')
 
-    return {"accuracy": accuracy, "precision": precision, "recall": recall, "f1": f1, "auc": auc,
-            "recall_weighted": recall_weighted, "precision_weighted": precision_weighted, "f1_weighted": f1_weighted, "auc_weighted": auc_weighted}
+    return {"accuracy": accuracy, "precision": precision, "recall": recall, "f1": f1, 
+            "recall_weighted": recall_weighted, "precision_weighted": precision_weighted, "f1_weighted": f1_weighted,
+            "AUC": auc_score, "AUC_weighted": auc_score_weighted}
 
 def get_encode_labels(pdf, text_field_name):
     le = preprocessing.LabelEncoder()
@@ -298,6 +300,7 @@ if __name__ == "__main__":
     args = TrainingArguments(
         output_dir="outputs",
         evaluation_strategy=evaluation_strategy, # "steps", # "epoch"
+        save_strategy=evaluation_strategy,
         eval_steps=500,
         per_device_train_batch_size=batch_size,
         per_device_eval_batch_size=batch_size,

@@ -41,7 +41,7 @@ This step is running [AutoML](https://learn.microsoft.com/en-us/azure/machine-le
 [automl-nlp-text.ipynb](https://github.com/Azure/azureml-examples/blob/main/sdk/python/jobs/automl-standalone-jobs/automl-nlp-text-named-entity-recognition-task-distributed-sweeping/automl-nlp-text-ner-task-distributed-with-sweeping.ipynb)
 
 Based on the evaluation metric set (in our case `AUC_weighted` as `f1_weighted` is not supported for nlp tasks) the best model found is the output of the job:
-![AutoML Best Model](./assets/Bestmodel.jpg)
+![AutoML Best Model](./assets/Bestmodel.png)
 
 ## Step 3 - Test_AutoML_Model
 

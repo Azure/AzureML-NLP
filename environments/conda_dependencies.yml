@@ -15,6 +15,7 @@ dependencies:
       - inference-schema
       - joblib
       - datasets
+      - sentencepiece
   - numpy~=1.21.6
   - pandas~=1.1.5
   - shap=0.39.0

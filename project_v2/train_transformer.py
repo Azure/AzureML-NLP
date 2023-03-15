@@ -118,7 +118,7 @@ def test_model(trainer, ds, prefix):
     test_result = trainer.predict(ds)
 
     metrics = test_result.metrics.keys()
-    # print(f'len(metrics): {metrics}')
+    print(f'len(metrics): {metrics}')
     
     for m in metrics:
         metric_name = f'{prefix}_{m.replace("test_", "")}'

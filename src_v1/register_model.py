@@ -123,7 +123,7 @@ def register_automl_model(ws, best_run, model_name,  datasets, tags):
     best_model_run.download_files(prefix="outputs/", output_directory=model_output_dir,append_prefix=False)
 
     shutil.copy('score_automl.py', f'{model_output_dir}/score.py')
-    shutil.copy('../environments/conda_env_automl_cpu_v1.yml', './model/conda_env.yml')
+    shutil.copy('conda_env_automl_cpu_v1.yml', './model/conda_env.yml')
     shutil.copy('sample_request_automl.json', './model/sample_request.json')
     print(' Dir {} '.format(os.listdir(model_output_dir)))
   
@@ -151,7 +151,7 @@ def register_hyperdrive_model(ws,best_run, model_name, datasets, tags):
     best_run.download_files(prefix="outputs/model", output_directory=dir, timeout_seconds=6000)
 
     shutil.copy('score.py', model_directory)
-    shutil.copy('../environments/conda_env_automl_cpu_v1.yml', f'{model_directory}/conda_env.yml')
+    shutil.copy('conda_env_automl_cpu_v1.yml', f'{model_directory}/conda_env.yml')
     shutil.copy('sample_request.json', model_directory)
    
     num_labels = len(pdf_train[args.target_name].unique())

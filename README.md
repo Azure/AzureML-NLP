@@ -1,5 +1,12 @@
 # Accelerator - Fine-Tuning Language Model in AML with Custom Dataset
 
+To be added:
+- We add a table of content that describes what is included
+- The fact that we have multiple scenarios
+- Fixing the file paths and names
+- 
+
+
 This work is aimed to provide an example to fine-tune a custom NLP model using native AML capabilities including HyperDrive to tune the hyperparameters, AutoML job to compare results and Managed Endpoint to deploy the model. This version is developed using AML V1 although the deployment of the model to Managed Endpoints is developed using SDK V2.
 
 This work leverages [AML Pipelines V1](https://learn.microsoft.com/en-us/python/api/overview/azure/ml/?view=azure-ml-py&preserve-view=true). The model is trained using several models including [Bert Based Cased](https://huggingface.co/tftransformers/bert-base-cased) and is deployed in [Managed Endpoints using SDKV2](https://learn.microsoft.com/en-us/azure/machine-learning/how-to-deploy-managed-online-endpoints). In order to run the pipeline, you need to run the [DefinePipeline.ipynb](./DefinePipeline.ipynb) notebook.

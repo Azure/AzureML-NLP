@@ -32,3 +32,4 @@ test_trainer/*
 test_deployment.py
 TestResourceUtilization.ipynb
 drafts/* 
+README_removed.md
